@@ -2,9 +2,8 @@ import { Command, Option } from "commander";
 import { add, done, list, login, logout, whoami } from "./commands";
 import { DEFAULT_SERVER } from "./config";
 import { CliError, EXIT_AUTH } from "./errors";
-
-/** Injected from package.json by build.mjs. */
-declare const CLI_VERSION: string;
+import { serveMcp } from "./mcp";
+import { version } from "./version";
 
 const jsonOption = () =>
   new Option("--json", "print the result as JSON on stdout");
@@ -13,7 +12,7 @@ const program = new Command("ai-tutor")
   .description(
     "Read and update your ai-tutor to-do list (the one Bartholomew keeps in the web app) from the terminal.",
   )
-  .version(CLI_VERSION)
+  .version(version)
   .showHelpAfterError()
   .addHelpText(
     "after",
@@ -23,6 +22,7 @@ Getting started:
   $ ai-tutor add Buy milk     # prints the new item's row
   $ ai-tutor list             # one row per item: "[ ] <id>  <title>", "[x]" when done
   $ ai-tutor done <id>        # <id> is the full id from a row
+  $ ai-tutor mcp --stdio      # the same list as MCP tools, for Claude Code and other agents
 
 Output:
   Results go to stdout; prompts, progress and errors go to stderr.
@@ -87,6 +87,21 @@ program
   .argument("<id>", "the item's full id, as printed by list or add")
   .addOption(jsonOption())
   .action(done);
+
+program
+  .command("mcp")
+  .description(
+    "Run a Model Context Protocol server on stdin/stdout that offers the list as tools: list_todos (optional filter q), add_todo (title) and mark_todo_done (id). Uses the saved login and AI_TUTOR_URL like the other commands; it starts without a login, and each tool call then answers with an error asking the user to run ai-tutor login.",
+  )
+  .requiredOption("--stdio", "speak MCP over stdin/stdout (the only transport)")
+  .addHelpText(
+    "after",
+    `
+Register it with Claude Code from this repository:
+  $ claude mcp add --transport stdio ai-tutor -- npx ai-tutor mcp --stdio
+Only JSON-RPC is written to stdout; logs go to stderr. See docs/mcp.md.`,
+  )
+  .action(serveMcp);
 
 try {
   await program.parseAsync();

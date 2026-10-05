@@ -64,6 +64,7 @@ The root package is the web app; npm workspaces add `packages/api` (`@ai-tutor/a
 
 - `GET /api/todos?q=`, `POST /api/todos` and `PATCH /api/todos/:id` (`{ done }`) are for CLIs and services, which send the `set-auth-token` header of a Better Auth sign-in as their bearer token.
 - `@ai-tutor/api/todos` (`packages/api/src/todos.ts`) holds the request/response zod schemas that the routes and the CLI both import; the package ships TypeScript source, imports nothing but zod, and must stay that way.
+- Its `.describe()` texts end up in the MCP tools' JSON Schemas, so they are written for a model to read.
 - Only GET honours the session cookie (for the sidebar); POST and PATCH call `getBearerSession`, which passes Better Auth the Authorization header alone, so the browser never gets a write path beside the agent.
 - Route files may export only handlers, so shared route helpers (`parseInput`, `readJson`, `errorJson`) live in `lib/api-route.ts`.
 
@@ -93,11 +94,17 @@ The root package is the web app; npm workspaces add `packages/api` (`@ai-tutor/a
 - The bin is the tracked shim `cli/bin/ai-tutor.js`, because npm skips linking a bin whose target does not exist yet and `dist/` is only built by `prepare`.
 - `AI_TUTOR_URL` picks the server (default `http://localhost:3000`); the token is stored per server URL in `$XDG_CONFIG_HOME/ai-tutor/hosts.json` (else `~/.config/ai-tutor/`), written 0600 via rename and never printed.
 - Results go to stdout and everything else to stderr; exit status 4 means not logged in or session rejected.
+- `cli/src/todos.ts` holds the todo operations both the commands and the MCP tools call, and reads the saved login on every call.
+- `ai-tutor mcp --stdio` (`cli/src/mcp.ts`, `@modelcontextprotocol/server` v2) registers `list_todos`, `add_todo` and `mark_todo_done`, taking both input and output schemas from `@ai-tutor/api/todos`; a `CliError` becomes an `isError` result, which is how "run `ai-tutor login`" reaches the model.
+- In MCP mode stdout carries JSON-RPC only, so `serveMcp` points `console.log`/`info`/`debug` at stderr — never write to stdout on that path.
+- `docs/mcp.md` covers registering the server with Claude Code here and in other projects; keep it in step with the command.
 
 ## Tests — `tests/unit` and `tests/integration` (Vitest), `tests/e2e` (Playwright)
 
-- Vitest is jsdom + Testing Library and only picks up `tests/unit/**/*.test.{ts,tsx}` and `tests/integration/**/*.test.ts`; async Server Components are unsupported there, so cover those with e2e instead.
-- `tests/integration/cli.test.ts` builds the CLI, starts `next dev` on a spare port with `NEXT_DIST_DIR=.next-cli` over a temp database, and runs the bin with `XDG_CONFIG_HOME` in a temp dir; it approves the device code over HTTP with a `testUtils()` session cookie plus an `Origin` header.
+- Vitest is jsdom + Testing Library in two projects, `unit` (`tests/unit/**/*.test.{ts,tsx}`) and `integration` (`tests/integration/**/*.test.ts`, node); async Server Components are unsupported there, so cover those with e2e instead.
+- The integration project's global setup, `tests/integration/server.ts`, builds the CLI and starts one `next dev` on a spare port (`NEXT_DIST_DIR=.next-cli`, temp database) and `provide`s it as `inject("server")`; it runs only when an integration file is selected, and the files run one at a time.
+- `tests/integration/helpers.ts` gives each file a temp `XDG_CONFIG_HOME` and a `testUtils()` instance on the server's database file and secret.
+- `cli.test.ts` approves the device code over HTTP with a `testUtils()` session cookie plus an `Origin` header; `mcp.test.ts` skips the device flow and writes `hosts.json` itself with the signed `login().cookies[0].value`.
 - `vitest.config.mts` resolves `@/*` through Vite's native `resolve.tsconfigPaths`, so no `vite-tsconfig-paths` plugin is needed.
 - Playwright runs Chromium only against its own `next dev` on port 3100 (override with `E2E_PORT`).
 - `next dev` refuses to start twice against one dist dir, so `next.config.ts` reads `NEXT_DIST_DIR` and the e2e server sets it to `.next-e2e`; that dir also needs a `tsconfig.json` include entry, which `next dev` adds itself.

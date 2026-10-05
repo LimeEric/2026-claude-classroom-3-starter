@@ -11,25 +11,45 @@ import { z } from "zod";
  * sidebar.
  */
 
+// The descriptions travel into JSON Schema, which is how the CLI's MCP tools
+// explain their parameters to a model.
 export const todoSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  done: z.boolean(),
+  id: z
+    .string()
+    .describe("The item's id, as returned when it was listed or added."),
+  title: z.string().describe("What the item says."),
+  done: z.boolean().describe("Whether the item has been marked done."),
 });
 
 export type Todo = z.infer<typeof todoSchema>;
 
+/** The `:id` segment of `/api/todos/:id`. */
+export const todoParams = todoSchema.pick({ id: true });
+
 /** `GET /api/todos?q=` — `q` keeps the items whose title contains it, ignoring ASCII case. */
 export const listTodosQuery = z.object({
-  q: z.string().trim().min(1).optional(),
+  q: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      "Keep only the items whose title contains this text, ignoring case. Omit it for the whole list.",
+    ),
 });
+
+export type ListTodosQuery = z.infer<typeof listTodosQuery>;
 
 export const listTodosResponse = z.object({ todos: z.array(todoSchema) });
 
 export type ListTodosResponse = z.infer<typeof listTodosResponse>;
 
 /** `POST /api/todos` — answers 201. */
-export const createTodoRequest = z.object({ title: z.string().trim().min(1) });
+export const createTodoRequest = z.object({
+  title: z.string().trim().min(1).describe("What the new item should say."),
+});
+
+export type CreateTodoRequest = z.infer<typeof createTodoRequest>;
 
 export const createTodoResponse = z.object({ todo: todoSchema });
 

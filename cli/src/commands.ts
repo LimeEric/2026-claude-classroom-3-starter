@@ -2,14 +2,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { CLI_CLIENT_ID } from "@ai-tutor/api/device";
 import {
   createTodoRequest,
-  createTodoResponse,
   listTodosQuery,
-  listTodosResponse,
   type Todo,
-  updateTodoResponse,
 } from "@ai-tutor/api/todos";
 import { getHost, removeHost, saveHost, serverUrl } from "./config";
-import { CliError, notLoggedIn, sessionRejected } from "./errors";
+import { CliError, sessionRejected } from "./errors";
 import {
   type AuthClient,
   authClient,
@@ -17,8 +14,8 @@ import {
   describeAuthError,
   parseInput,
   reach,
-  todoApi,
 } from "./http";
+import { addTodo, listTodos, markTodoDone, signedIn } from "./todos";
 
 type Output = { json?: boolean };
 
@@ -33,15 +30,6 @@ const row = (todo: Todo) =>
 /** The default 8-character code, split in two so it is easier to read out. */
 const displayCode = (code: string) =>
   code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
-
-async function signedIn() {
-  const server = serverUrl();
-  const host = await getHost(server);
-  if (!host) {
-    throw notLoggedIn(server);
-  }
-  return { server, token: host.token };
-}
 
 async function sessionUser(client: AuthClient, server: string, token: string) {
   const { data, error } = await reach(server, () =>
@@ -163,10 +151,8 @@ export async function logout() {
 }
 
 export async function add(words: string[], { json }: Output) {
-  const body = parseInput(createTodoRequest, { title: words.join(" ") });
-  const { todo } = await todoApi(
-    { ...(await signedIn()), method: "POST", path: "api/todos", body },
-    createTodoResponse,
+  const todo = await addTodo(
+    parseInput(createTodoRequest, { title: words.join(" ") }),
   );
   if (json) {
     printJson({ todo });
@@ -177,11 +163,7 @@ export async function add(words: string[], { json }: Output) {
 
 export async function list({ json, query }: Output & { query?: string }) {
   const { q } = parseInput(listTodosQuery, { q: query });
-  const search = q ? `?${new URLSearchParams({ q })}` : "";
-  const { todos } = await todoApi(
-    { ...(await signedIn()), method: "GET", path: `api/todos${search}` },
-    listTodosResponse,
-  );
+  const todos = await listTodos({ q });
   if (json) {
     printJson({ todos });
   } else if (todos.length === 0) {
@@ -192,16 +174,7 @@ export async function list({ json, query }: Output & { query?: string }) {
 }
 
 export async function done(id: string, { json }: Output) {
-  const { todo } = await todoApi(
-    {
-      ...(await signedIn()),
-      method: "PATCH",
-      path: `api/todos/${encodeURIComponent(id)}`,
-      body: { done: true },
-      notFound: `No item with id ${id} on your list. Run \`ai-tutor list\` for the ids.`,
-    },
-    updateTodoResponse,
-  );
+  const todo = await markTodoDone(id);
   if (json) {
     printJson({ todo });
   } else {
