@@ -9,14 +9,15 @@
     "ignoreUnknown": true,
     "includes": [
       "**",
-      "!node_modules",
+      "!**/node_modules",
       "!.next",
       "!.next-e2e",
+      "!.next-cli",
       "!.claude",
       "!.agents",
       "!public",
       "!drizzle",
-      "!dist",
+      "!**/dist",
       "!build"
     ]
   },

@@ -1,12 +1,12 @@
-import { parseInput, readJson, unauthorized } from "@/lib/api-route";
-import { auth, getBearerSession } from "@/lib/auth";
-import { db } from "@/lib/db";
 import {
   type CreateTodoResponse,
   createTodoRequest,
   type ListTodosResponse,
   listTodosQuery,
-} from "@/lib/todo-api";
+} from "@ai-tutor/api/todos";
+import { parseInput, readJson, unauthorized } from "@/lib/api-route";
+import { auth, getBearerSession } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { addTodoFor, listTodosFor } from "@/lib/todo-tools";
 
 /**

@@ -1,5 +1,5 @@
+import type { ErrorResponse } from "@ai-tutor/api/todos";
 import type { z } from "zod";
-import type { ErrorResponse } from "@/lib/todo-api";
 
 export const errorJson = (status: number, body: ErrorResponse) =>
   Response.json(body, { status });

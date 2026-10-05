@@ -11,11 +11,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # Todo Manager
 
 AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra agent served to a CopilotKit chat over AG-UI, behind Better Auth email/password sign-in, over a Drizzle/SQLite persistence layer, with a Vitest + Playwright test harness.
+The root package is the web app; npm workspaces add `packages/api` (`@ai-tutor/api`, the wire contract) and `cli/` (`ai-tutor-cli`, the `ai-tutor` command).
 
 ## Commands
 
 - If Turbopack fails to replace a symlink under `.next/dev/node_modules`, stop the server and remove that generated directory so it can recreate the links; copied build output can contain ordinary directories in their place.
 - `npm run dev` / `npm run build` / `npm run start`.
+- `npm install` runs the root `prepare`, which builds the CLI, so `npx ai-tutor` works right after it; rebuild with `npm run build --workspace ai-tutor-cli`.
 - If a build reports stale generated route types while `tsc --noEmit --incremental false` passes, remove `.next/cache/.tsbuildinfo` before rebuilding.
 - `npm run lint` is `biome check` and `npm run format` is `biome format --write` — Biome only, so never add ESLint or Prettier config.
 - `npm test` (Vitest, single run), `npm run test:watch`, `npm run test:e2e` (Playwright), `npm run test:e2e:llm` (the one spec that spends OpenRouter credit).
@@ -51,12 +53,17 @@ AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra 
 - `lib/auth-config.ts` exports `authOptions(db)`, which every entry point that needs plugins spreads with its own literal `plugins` array to preserve inference of plugin helpers such as `ctx.test`.
 - `lib/auth.ts` is the app instance (explicitly `server-only`, `nextCookies()` last), with `bearer({ requireSignature: true })` so `getSession` also reads `Authorization: Bearer <set-auth-token>` but refuses the unsigned token stored in the session table; `lib/auth-cli.ts` exists only because the Better Auth CLI refuses to load a module graph containing `server-only`.
 - Gate pages server-side with `auth.api.getSession({ headers: await headers() })` and `redirect()`; there is deliberately no `proxy.ts`, whose cookie check would not validate anything.
-- Email/password only: when an auth change changes the schema, regenerate it and generate and apply the migration.
+- Email/password only for people; the CLI signs in with the device authorization grant, `deviceFlow()` in `lib/auth-config.ts`, which accepts only `CLI_CLIENT_ID` from `@ai-tutor/api/device`.
+- `/device/token` answers with the raw session token, so the `hooks.after` in `authOptions` sets the session cookie there and the bearer plugin turns it into a signed `set-auth-token` header, the token the CLI keeps.
+- `app/device/page.tsx` is where a signed-in user approves a code: looking the code up (`GET /api/auth/device`) binds it to that user, and only then do approve and deny accept it.
+- `/login` and `/signup` return to their `?redirect=` path after signing in, filtered through `lib/redirect.ts` so it can only name a path on this site.
+- `lib/auth-cli.ts` must list every `lib/auth.ts` plugin that brings a table (today `deviceFlow()`), or `auth:generate` drops it.
+- When an auth change changes the schema, regenerate it and generate and apply the migration.
 
-## REST API — `app/api/todos/`, `lib/todo-api.ts`, `lib/api-route.ts`
+## REST API — `app/api/todos/`, `packages/api/`, `lib/api-route.ts`
 
 - `GET /api/todos?q=`, `POST /api/todos` and `PATCH /api/todos/:id` (`{ done }`) are for CLIs and services, which send the `set-auth-token` header of a Better Auth sign-in as their bearer token.
-- `lib/todo-api.ts` holds the request/response zod schemas and imports nothing but zod, so a CLI can import it — keep it that way.
+- `@ai-tutor/api/todos` (`packages/api/src/todos.ts`) holds the request/response zod schemas that the routes and the CLI both import; the package ships TypeScript source, imports nothing but zod, and must stay that way.
 - Only GET honours the session cookie (for the sidebar); POST and PATCH call `getBearerSession`, which passes Better Auth the Authorization header alone, so the browser never gets a write path beside the agent.
 - Route files may export only handlers, so shared route helpers (`parseInput`, `readJson`, `errorJson`) live in `lib/api-route.ts`.
 
@@ -79,9 +86,18 @@ AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra 
 - Mastra memory is durable in SQLite; the default `InMemoryAgentRunner` also keeps a shared bounded replay cache that can restore the browser transcript until eviction or server restart.
 - `@copilotkit/runtime` drags in a zod-3 dependency tree while Better Auth is on zod 4, which npm resolves by nesting the zod 3 copy under `@copilotkit/runtime/node_modules` — no `.npmrc` or `--legacy-peer-deps` is involved.
 
-## Tests — `tests/unit` (Vitest), `tests/e2e` (Playwright)
+## CLI — `cli/`
 
-- Vitest is jsdom + Testing Library and only picks up `tests/unit/**/*.test.{ts,tsx}`; async Server Components are unsupported there, so cover those with e2e instead.
+- Commander program in `cli/src/main.ts`, whose `--help` is the CLI's only documentation and is written for an agent to work from — keep it complete when a command changes.
+- `cli/build.mjs` bundles `src/` and `@ai-tutor/api` into `dist/ai-tutor.js` with esbuild, leaving the `dependencies` as runtime imports.
+- The bin is the tracked shim `cli/bin/ai-tutor.js`, because npm skips linking a bin whose target does not exist yet and `dist/` is only built by `prepare`.
+- `AI_TUTOR_URL` picks the server (default `http://localhost:3000`); the token is stored per server URL in `$XDG_CONFIG_HOME/ai-tutor/hosts.json` (else `~/.config/ai-tutor/`), written 0600 via rename and never printed.
+- Results go to stdout and everything else to stderr; exit status 4 means not logged in or session rejected.
+
+## Tests — `tests/unit` and `tests/integration` (Vitest), `tests/e2e` (Playwright)
+
+- Vitest is jsdom + Testing Library and only picks up `tests/unit/**/*.test.{ts,tsx}` and `tests/integration/**/*.test.ts`; async Server Components are unsupported there, so cover those with e2e instead.
+- `tests/integration/cli.test.ts` builds the CLI, starts `next dev` on a spare port with `NEXT_DIST_DIR=.next-cli` over a temp database, and runs the bin with `XDG_CONFIG_HOME` in a temp dir; it approves the device code over HTTP with a `testUtils()` session cookie plus an `Origin` header.
 - `vitest.config.mts` resolves `@/*` through Vite's native `resolve.tsconfigPaths`, so no `vite-tsconfig-paths` plugin is needed.
 - Playwright runs Chromium only against its own `next dev` on port 3100 (override with `E2E_PORT`).
 - `next dev` refuses to start twice against one dist dir, so `next.config.ts` reads `NEXT_DIST_DIR` and the e2e server sets it to `.next-e2e`; that dir also needs a `tsconfig.json` include entry, which `next dev` adds itself.
@@ -112,6 +128,7 @@ AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra 
 
 ## Tooling — `biome.json`
 
+- `.gitignore` ignores `node_modules/` at every level, since workspaces can get their own, and `cli/dist/`.
 - Biome ignores `.claude/` and `.agents/` because their vendored skill assets fail `biome check .`, `drizzle/` because drizzle-kit's generated JSON does not match its formatter, and `public/` because Biome lints SVGs and the create-next-app artwork has no `<title>`.
 - `npm run format` skips assist actions such as import sorting; use `npx biome check --write <path>` to fix those.
 

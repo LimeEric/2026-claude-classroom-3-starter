@@ -1,13 +1,14 @@
 import { z } from "zod";
 
 /**
- * The wire contract of /api/todos, shared by the route handlers and any client
- * in this repo. Depends on nothing but zod, so a CLI can import it without
- * pulling in the database, Better Auth or Next.js.
+ * The wire contract of /api/todos, shared by the route handlers and the CLI in
+ * cli/. Depends on nothing but zod, so a client can import it without pulling
+ * in the database, Better Auth or Next.js.
  *
  * Every request carries `Authorization: Bearer <token>`, where the token is the
- * `set-auth-token` response header of a Better Auth sign-in. Only the list also
- * accepts the browser's session cookie, for the sidebar.
+ * `set-auth-token` response header of a Better Auth sign-in or device-token
+ * exchange. Only the list also accepts the browser's session cookie, for the
+ * sidebar.
  */
 
 export const todoSchema = z.object({

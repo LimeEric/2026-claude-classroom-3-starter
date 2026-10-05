@@ -2,7 +2,7 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { bearer } from "better-auth/plugins";
-import { authOptions } from "@/lib/auth-config";
+import { authOptions, deviceFlow } from "@/lib/auth-config";
 import { db } from "@/lib/db";
 
 export const auth = betterAuth({
@@ -12,6 +12,8 @@ export const auth = betterAuth({
     // session cookie. requireSignature refuses the raw token stored in the
     // session table, so the header needs the secret's signature like the cookie.
     bearer({ requireSignature: true }),
+    // `ai-tutor login`; approved on app/device/page.tsx.
+    deviceFlow(),
     // nextCookies mirrors Set-Cookie into next/headers, so it must stay last.
     nextCookies(),
   ],

@@ -2,19 +2,18 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { betterAuth } from "better-auth";
-import { type TestHelpers, testUtils } from "better-auth/plugins";
-import { migrate } from "drizzle-orm/libsql/migrator";
-import { drizzle } from "drizzle-orm/libsql/node";
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
-
-import { authOptions } from "@/lib/auth-config";
 import {
   createTodoResponse,
   errorResponse,
   listTodosResponse,
   updateTodoResponse,
-} from "@/lib/todo-api";
+} from "@ai-tutor/api/todos";
+import { betterAuth } from "better-auth";
+import { type TestHelpers, testUtils } from "better-auth/plugins";
+import { migrate } from "drizzle-orm/libsql/migrator";
+import { drizzle } from "drizzle-orm/libsql/node";
+import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
+import { authOptions } from "@/lib/auth-config";
 
 // The route modules run for real — lib/auth.ts with its bearer plugin, lib/db.ts
 // — on a throwaway file. `server-only` otherwise resolves to its throwing build.

@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, use, useState } from "react";
 import { AuthCard } from "@/components/ui/auth-card";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/form-error";
 import { authClient } from "@/lib/auth-client";
+import { safeRedirect, withRedirect } from "@/lib/redirect";
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: PageProps<"/login">) {
   const router = useRouter();
+  // Where to go once signed in, such as /device for a CLI login.
+  const redirect = safeRedirect(use(searchParams).redirect);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -34,7 +37,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace("/");
+    router.replace(redirect);
     router.refresh();
   }
 
@@ -46,7 +49,7 @@ export default function LoginPage() {
         <>
           Need an account?{" "}
           <Link
-            href="/signup"
+            href={withRedirect("/signup", redirect)}
             className="font-semibold text-accent hover:underline"
           >
             Sign up

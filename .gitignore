@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
+# dependencies (the root's and every workspace's)
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -20,10 +20,12 @@
 # next.js
 /.next/
 /.next-e2e/
+/.next-cli/
 /out/
 
 # production
 /build
+/cli/dist/
 
 # misc
 .DS_Store

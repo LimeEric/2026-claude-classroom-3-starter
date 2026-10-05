@@ -1,0 +1,14 @@
+{
+  "name": "@ai-tutor/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The wire contract between the ai-tutor web app and its API clients.",
+  "type": "module",
+  "exports": {
+    "./device": "./src/device.ts",
+    "./todos": "./src/todos.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.2"
+  }
+}

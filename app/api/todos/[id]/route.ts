@@ -1,7 +1,10 @@
+import {
+  type UpdateTodoResponse,
+  updateTodoRequest,
+} from "@ai-tutor/api/todos";
 import { errorJson, parseInput, readJson, unauthorized } from "@/lib/api-route";
 import { getBearerSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { type UpdateTodoResponse, updateTodoRequest } from "@/lib/todo-api";
 import { setTodoDoneFor } from "@/lib/todo-tools";
 
 /**
